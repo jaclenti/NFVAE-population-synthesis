@@ -28,12 +28,13 @@ import config
 def transform_bins(df, vars):
     df1 = df.copy()
     for var in vars:
-        df1[var + "_bin"] =  pd.qcut(df1[var], q = 5, labels = False).astype(int)
+        df1[var + "_bin"] =  pd.qcut(df1[var], q = 5, labels = False, duplicates = "drop").astype(int)
         df1.drop(columns = [var], inplace = True)
     return df1
 
 def transform_bins_to_real(sample_df, df_real, var):
-    bins_values = pd.qcut(df_real[var], q = 5, labels = False, retbins = True)[1]
+    bins_values = pd.qcut(df_real[var], q = 5, labels = False, duplicates = "drop", retbins = True)[1]
+    np.random.seed(2)
     sample_df[var] = [np.random.uniform(low = bins_values[u], high = bins_values[u + 1]) for u in sample_df[var + "_bin"]]
     sample_df.drop(columns = [var + "_bin"], inplace = True)
     return sample_df
@@ -72,17 +73,20 @@ if __name__ == "__main__":
 
         for cap in df_real["CAP"].unique():
             df_cap = df_real.query("CAP == @cap").dropna()
-            df_cap = transform_bins(df_cap, ["log_mq", "log_price"])
             N_cap = len(df_cap)
-            df_counts = df_cap.value_counts().reset_index()
-            cap_locs = df_locations.query("CAP == @cap").sample(n = N_cap)
-            sample_df_cap = df_counts.sample(n = 10 * N_cap, weights = df_counts["count"],
-                                         random_state = 2, replace = True).drop(columns = ["count"])
+            if N_cap > 1:
+                df_cap = transform_bins(df_cap, ["log_mq", "log_price"])            
+                df_counts = df_cap.value_counts().reset_index()
+                cap_locs = df_locations.query("CAP == @cap").sample(n = N_cap, random_state = 2)
+                sample_df_cap = df_counts.sample(n = 10 * N_cap, weights = df_counts["count"],
+                                            random_state = 2, replace = True).drop(columns = ["count"])
 
-            sample_df_cap[["x", "y"]] = cap_locs[["GEO_LONGITUDINE_BENE_ROUNDED", "GEO_LATITUDINE_BENE_ROUNDED"]]
-            sample_df_cap["CAP"] = cap
-            sample_df_cap = transform_bins_to_real(sample_df_cap, df_real, "log_mq")
-            sample_df_cap = transform_bins_to_real(sample_df_cap, df_real, "log_price")
+                sample_df_cap[["x", "y"]] = cap_locs[["GEO_LONGITUDINE_BENE_ROUNDED", "GEO_LATITUDINE_BENE_ROUNDED"]]
+                sample_df_cap["CAP"] = cap
+                sample_df_cap = transform_bins_to_real(sample_df_cap, df_real, "log_mq")
+                sample_df_cap = transform_bins_to_real(sample_df_cap, df_real, "log_price")
+            else:
+                sample_df_cap = pd.concat([df_cap] * 10)
 
             df_sample_list.append(sample_df_cap)
         sample_df = pd.concat(df_sample_list)
