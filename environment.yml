@@ -3,7 +3,7 @@ channels:
   - defaults
   - conda-forge
 dependencies:
-  - geopandas=0.14
+  - geopandas=1.0
   - jupyter=1.0
   - matplotlib=3.7
   - numpy=1.25
@@ -17,6 +17,7 @@ dependencies:
   - joblib=1.4
   - shapely=2.0
   - rasterio=1.3
+  - pytorch==2.3
   - pip:
       - importlib-metadata==8.7
       - importlib-resources==6.5
@@ -24,3 +25,4 @@ dependencies:
       - pyfixest==0.30
       - seaborn==0.13
       - spatial-autocorrelation==0.0.1a0
+      - torch==2.3

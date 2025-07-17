@@ -31,6 +31,13 @@ import pickle
 from tqdm import tqdm
 from time import time
 
+def add_cat_features(df):
+    df["energy_class"] = df[[u for u in df.columns if "_energy" in u]].stack().rename("col").reset_index().query("col == 1")["level_1"]
+    df["COD_CAT"] = [u[8:] for u in df[[u for u in df.columns if "COD_CAT_" in u]].stack().rename("col").reset_index().query("col == 1")["level_1"]]
+    df["anno_costruzione"] = [u[17:] for u in df[[u for u in df.columns if "ANNO_COSTRUZIONE" in u]].stack().rename("col").reset_index().query("col == 1")["level_1"]]
+    return df
+
+
 if __name__ == "__main__":
     num_layers_nf = 32
     hidden_features_nf = 32

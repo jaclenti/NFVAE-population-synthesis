@@ -2,10 +2,10 @@ import pandas as pd
 import sys
 sys.path += ["../src"]
 import jl_vae
-from jl_nflows_geo_coordinates import load_dict
+from jl_nflows_geo_coordinates import load_nf as load_dict
 import utils
 import numpy as np
-import pyfixest as pf
+# import pyfixest as pf
 from tqdm import tqdm
 import pickle
 
@@ -20,7 +20,7 @@ year_erogaz = [f'year_erogaz_{u}' for u in [u for u in range(2016, 2025)]]
 # Trained Hedonic Regression
 train_path = '/data/housing/data/intermediate/HedonicRegressionABM/reg_risk_OMI_id.pkl'
 data_path = '/data/housing/data/intermediate/ISP_data_for_ABM/ISP_ABM_up_to_2024_08.csv'
-    
+
 
 def load_data_for_syn_pop():
     # 40 seconds
@@ -199,6 +199,5 @@ def get_real_pop(prov, geo_dict = geo_dict, train_path = train_path,
     df_real[year_erogaz[-1]] = True
     df_real = Predict_function(isp, train_path, df_real).rename(columns = {"GEO_LONGITUDINE_BENE_ROUNDED":"x", "GEO_LATITUDINE_BENE_ROUNDED":"y"})
     return one_hot_to_categorical(df_real)
-
 
 
