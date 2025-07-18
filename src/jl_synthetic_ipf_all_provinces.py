@@ -25,6 +25,18 @@ from jl_synthetic_pop_all_provinces import add_cat_features
 from ipfn import ipfn
 import config
 
+
+features_synpop = ['flag_garage', 'flag_pertinenza', 'flag_air_conditioning',
+            'flag_multi_floor', 'log_mq', 'ANNO_COSTRUZIONE_1500_1965',
+            'ANNO_COSTRUZIONE_1965_1985', 'ANNO_COSTRUZIONE_1985_2005',
+            'ANNO_COSTRUZIONE_2005_2025', 'ANNO_COSTRUZIONE_Missing',
+            'High_energy_class', 'Low_energy_class', 'Medium_energy_class',
+            'Missing_energy_class', 'COD_CAT_A02', 'COD_CAT_A03',
+            'COD_CAT_A_01_07_08', 'COD_CAT_A_04_05', 'floor_0.0', 'floor_1.0',
+            'floor_2.0', 'floor_3.0', 'floor_Missing', 'floor_plus_4',
+            'flag_air_conditioning_Missing', 'flag_multi_floor_Missing', 'y', 'x','log_price']
+
+
 def transform_bins(df, vars):
     df1 = df.copy()
     for var in vars:
@@ -43,59 +55,73 @@ def transform_bins_to_real(sample_df, df_real, var):
 
 if __name__ == "__main__":
     geo_dict = jl_vae.load_geo_data()
-    date = "250717"
+    date = "250718"
 
     for _, (prov, cod_prov) in cod_prov_abbrv_df.sort_values("prov_abbrv").iterrows():
         print(prov)
-        real_pops = jl_vae.path_pop_synth + f"pop_samples/pop_real_with_hedonic_price"
-        df_real_ = pd.read_csv(real_pops + f"/pop_real_full_250110{prov}.csv", index_col = 0)
-        df_real_ = add_cat_features(df_real_)
-        df_real = df_real_.assign(log_price = lambda x: x["price_corrected"], CAP = lambda x: x["CAP"].astype(str))
+        try:
+            df_real = pd.read_csv(f"/data/housing/data/intermediate/jl_pop_synth/real_populations/df_real_{prov}.csv", index_col = 0)[features_synpop + ["CAP"]]
+            df_real95 = df_real.sample(frac = 0.95, random_state = 1111)
 
-        np.random.seed(2)
-        ran_xy = np.random.uniform(low = df_real["x"].min(), high = df_real["x"].max(), size = 1000000), np.random.uniform(low = df_real["y"].min(), high = df_real["y"].max(), size = 1000000)
+            sample_locs = True
+            np.random.seed(2)
+            # matched_df = []
+            # while sample_locs:
+            #     ran_xy = np.random.uniform(low = df_real["x"].min(), high = df_real["x"].max(), size = 1000000), np.random.uniform(low = df_real["y"].min(), high = df_real["y"].max(), size = 1000000)
 
-        df_locations = utils.spatial_matching_ABM(pd.DataFrame({"x": ran_xy[0], "y": ran_xy[1]}), geo_dict["hydro_risk"], geo_dict["census"], 
-                                                  geo_dict["omi_og"], geo_dict["cap"]).query("prov_abbrv == @prov")
-        
-        df_real = df_real_.assign(log_price = lambda x: x["price_corrected"], CAP = lambda x: x["CAP"].astype(str))
-        df_real = df_real[['flag_garage', 'flag_pertinenza', 'flag_air_conditioning',
-            'flag_multi_floor', 
-            'log_mq', 'log_price',
-            'flag_air_conditioning_Missing', 
-            # 'x', 'y', 
-            'CAP',
-            'energy_class', 
-            'COD_CAT',
-            'anno_costruzione']]
-        
-        df_sample_list = []
+            #     matched_df.append(utils.spatial_matching_ABM(pd.DataFrame({"x": ran_xy[0], "y": ran_xy[1]}), geo_dict["hydro_risk"], geo_dict["census"], 
+            #                                             geo_dict["omi_og"], geo_dict["cap"]).query("prov_abbrv == @prov"))
+            #     df_locations = pd.concat(matched_df)
+            #     if len(df_locations["CAP"].unique()) >= len(df_real["CAP"].unique()):
+            #         sample_locs = False
 
-        for cap in df_real["CAP"].unique():
-            df_cap = df_real.query("CAP == @cap").dropna()
-            N_cap = len(df_cap)
-            if N_cap > 1:
-                df_cap = transform_bins(df_cap, ["log_mq", "log_price"])            
-                df_counts = df_cap.value_counts().reset_index()
-                cap_locs = df_locations.query("CAP == @cap").sample(n = N_cap, random_state = 2)
-                sample_df_cap = df_counts.sample(n = 10 * N_cap, weights = df_counts["count"],
-                                            random_state = 2, replace = True).drop(columns = ["count"])
+            ran_xy = np.random.uniform(low = df_real["x"].min(), high = df_real["x"].max(), size = 1000000), np.random.uniform(low = df_real["y"].min(), high = df_real["y"].max(), size = 1000000)
 
-                sample_df_cap[["x", "y"]] = cap_locs[["GEO_LONGITUDINE_BENE_ROUNDED", "GEO_LATITUDINE_BENE_ROUNDED"]]
-                sample_df_cap["CAP"] = cap
-                sample_df_cap = transform_bins_to_real(sample_df_cap, df_real, "log_mq")
-                sample_df_cap = transform_bins_to_real(sample_df_cap, df_real, "log_price")
-            else:
-                sample_df_cap = pd.concat([df_cap] * 10)
+            df_locations = utils.spatial_matching_ABM(pd.DataFrame({"x": ran_xy[0], "y": ran_xy[1]}), geo_dict["hydro_risk"], geo_dict["census"], 
+                                                         geo_dict["omi_og"], geo_dict["cap"]).query("prov_abbrv == @prov")
+            
+            
 
-            df_sample_list.append(sample_df_cap)
-        sample_df = pd.concat(df_sample_list)
-        sample_df.to_csv(jl_vae.path_pop_synth + f"ipf_samples/pop_sample_{prov}_{date}.csv")
+            sample_dfs = []
+            for df_ in [df_real.copy(), df_real95.copy()]:
+                df_ = df_.dropna(subset = "CAP").assign(CAP = lambda x: [f"{int(u):05d}" for u in x["CAP"]])
+                df_.drop(columns = ["x", "y"], inplace = True)
+            
+                df_sample_list = []
+            
+                for cap in df_["CAP"].unique():
+                    locations_cap = df_locations.query("CAP == @cap")
+                    df_cap = df_.query("CAP == @cap").dropna()
+                    N_cap = len(df_cap)
+                    if N_cap > 1:
+                        df_cap = transform_bins(df_cap, ["log_mq", "log_price"])            
+                        df_counts = df_cap.value_counts().reset_index()
+                        sample_df_cap = df_counts.sample(n = 10 * N_cap, weights = df_counts["count"],
+                                                    random_state = 2, replace = True).drop(columns = ["count"])
 
+                        sample_df_cap = transform_bins_to_real(sample_df_cap, df_, "log_mq")
+                        sample_df_cap = transform_bins_to_real(sample_df_cap, df_, "log_price")
+                    else:
+                        sample_df_cap = pd.concat([df_cap] * 10)
+                    
+                    if len(locations_cap) > 0:
+                        cap_locs = locations_cap.sample(n = 10 * N_cap, replace = True, random_state = 2)
+                        sample_df_cap["x"] = list(cap_locs["GEO_LONGITUDINE_BENE_ROUNDED"])
+                        sample_df_cap["y"] = list(cap_locs["GEO_LATITUDINE_BENE_ROUNDED"])
+                        sample_df_cap["CAP"] = cap
+                    
+                    df_sample_list.append(sample_df_cap)
+                sample_df = pd.concat(df_sample_list)
+                sample_dfs.append(sample_df)
+            sample_dfs[0].to_csv(jl_vae.path_pop_synth + f"ipf_samples/df_sample_{prov}_{date}.csv")
+            sample_dfs[1].to_csv(jl_vae.path_pop_synth + f"ipf_samples/df_sample95_{prov}_{date}.csv")
+        except Exception as e:
+            print(e)
 
-        
 
             
+
+                
 
 
 

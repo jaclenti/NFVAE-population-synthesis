@@ -207,7 +207,7 @@ def spatial_matching_ABM(df,hydro_risk,census,omi_og,cap):
     # Create Shapely points from the coordinates 
     df_geo = gpd.points_from_xy(df['GEO_LONGITUDINE_BENE_ROUNDED'], df['GEO_LATITUDINE_BENE_ROUNDED'], z=None, crs="EPSG:4326")
     df_geo = df_geo.to_crs('EPSG:3035')
-    df_gpd = gpd.GeoDataFrame(df, geometry= df_geo).reset_index(drop=True)
+    df_gpd = gpd.GeoDataFrame(df, geometry= df_geo)#.reset_index(drop=True)
 
     # Find subset with valid coordinates (not NA)
     df_valid= df_gpd.loc[(~df_gpd.GEO_LATITUDINE_BENE_ROUNDED.isna()) & (~df_gpd.GEO_LONGITUDINE_BENE_ROUNDED.isna()),: ].reset_index(drop=True)
