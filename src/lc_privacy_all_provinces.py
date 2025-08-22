@@ -397,16 +397,18 @@ def DataPreparation_Privacy1(data):
 
 #%% MAIN
 
-res_dist = pd.DataFrame()
-res_ratio = pd.DataFrame()
 
-MIA_res_auc_roc = pd.DataFrame()
-MIA_res_auc_pr = pd.DataFrame()
 
 metrics = ['euclidean', 'norm1', 'gower']
 
 for metric in metrics:
     print(metric)
+
+    res_dist = pd.DataFrame()
+    res_ratio = pd.DataFrame()
+
+    MIA_res_auc_roc = pd.DataFrame()
+    MIA_res_auc_pr = pd.DataFrame()
 
     for file in tqdm(sorted(glob(f'/data/housing/data/intermediate/jl_pop_synth/isp_baselines/all_baselines_*.pickle'))):
         prov = file.split(".")[-2][-2:]
