@@ -1,3 +1,8 @@
+"""
+In this script, I will do the MIA analyses, considering the distance for all homes
+"""
+
+
 # import libraries
 import sys
 sys.path += ["../src"]
@@ -39,66 +44,13 @@ from sklearn.metrics import accuracy_score, classification_report, precision_sco
 from sklearn.metrics import roc_curve, roc_auc_score
 from sklearn.metrics import precision_recall_curve, average_precision_score
 
+
 def ConvertBool2number(df):
     """Function to convert boolean columns to numeric"""
     bool_cols = df.select_dtypes(include=bool).columns
     df[bool_cols] = df[bool_cols].astype(float)
     df = df.reset_index(drop=True)
     return df
-
-def DataPreparation_Privacy(data,keys):
-    """Function to prepare the data for the privacy analyses"""
-    
-    df_real = ConvertBool2number(data['df_real']) 
-    df_real95 = ConvertBool2number(data['df_real95'])
-    df_excluded = ConvertBool2number(df_real[~df_real.index.isin(df_real95.index)])
-    df_real95['descr'] = 0 #'real95'
-    df_excluded['descr'] = 1 #'real_excluded'
-
-    # nf + VAE
-    df_nfvae = ConvertBool2number(data['df_nfvae']) 
-    df_nfvae95 = ConvertBool2number(data['df_nfvae95']) 
-    df_nfvae['descr'] = 2 #'nfvae'
-    df_nfvae95['descr'] = 3 #'nfvae95'
-    # ablation (only VAE)
-    df_vae = ConvertBool2number(data['df_ablation'])
-    df_vae95 = ConvertBool2number(data['df_ablation95'])
-    df_vae['descr'] = 4 #'vae'
-    df_vae95['descr'] = 5 #'vae95'
-    # ipf
-    df_ipf = ConvertBool2number(data['df_ipf']) 
-    df_ipf95 = ConvertBool2number(data['df_ipf95']) 
-    df_ipf['descr'] = 6 #'ipf'
-    df_ipf95['descr'] = 7 #'ipf95'
-    # copula + nf (95%)
-    df_copulanf = ConvertBool2number(data['df_copula_nf'])
-    df_copulanf95 = ConvertBool2number(data['df_copula_nf95'])
-    df_copulanf['descr'] = 8 #'copulanf'
-    df_copulanf95['descr'] = 9 #'copulanf95'
-    # copula (95%)
-    df_copula = ConvertBool2number(data['df_copula_ablation'])
-    df_copula95 = ConvertBool2number(data['df_copula_ablation95'])
-    df_copula['descr'] = 10 #'copula'
-    df_copula95['descr'] = 11 #'copula95'
-
-    df = pd.concat([df_real95,df_excluded,
-                df_nfvae,df_nfvae95,
-                df_vae,df_vae95,
-                df_ipf,df_ipf95,
-                df_copulanf,df_copulanf95,
-                df_copula,df_copula95])
-    
-    df = (df-df.min())/(df.max()-df.min()) # all populations (for the same province) are scaled within the same metric space
-    df = df.fillna(0)
-
-    unique_descr = df.descr.unique()
-    data_out = dict()
-    for i in range(len(keys)):
-        a = df.loc[df.descr == unique_descr[i],:].drop(columns='descr').reset_index(drop=True)
-        data_out[keys[i]] = a
-
-    return data_out
-
 
 def Distance_x1(x1,metric='euclidean'):
     """Function to compute the distance between all point in a set, exception made for the point at hand"""
@@ -117,73 +69,6 @@ def Distance_x1(x1,metric='euclidean'):
 
     return min_dists
 
-def TableDistance(data, control_data, test_data = 'df_real95',metric='euclidean'):
-    """Function that computes the distance between the real records to the synthetic ones, returning some statistics"""
-    
-    #df1 = data[test_data] # dataframe containing the data considered in computing the distances
-    res = pd.DataFrame(columns=['mean','std'])
-    for i in control_data:
-        # prov_res = pd.DataFrame(columns=['pop_name','min_dist'])
-        # Distance matrix
-        if(metric=='euclidean'):
-            dists = pairwise_distances(data[test_data].values,data[i].values, metric='euclidean') 
-        elif(metric=='norm1'):
-            dists = pairwise_distances(data[test_data].values,data[i].values, metric='minkowski', p=1)
-        elif(metric == 'gower'):
-            dists = gower.gower_matrix(data[test_data].values,data[i].values)
-        
-        # take the minimum distances
-        min_dists = dists.min(axis=1)
-        res.loc[i,:] = [np.mean(min_dists), np.std(min_dists)]
-        
-    min_dists_benchmark = Distance_x1(data[test_data],metric=metric)
-    res.loc['Benchmark (train data -- real95)',:] = [np.mean(min_dists_benchmark), np.std(min_dists_benchmark)]#, np.std(min_dists_benchmark)/np.mean(min_dists_benchmark),
-                    #np.min(min_dists_benchmark),
-                    #np.quantile(min_dists_benchmark,0.05),np.quantile(min_dists_benchmark,0.25),np.median(min_dists_benchmark),
-                    #np.quantile(min_dists_benchmark,0.75),np.quantile(min_dists_benchmark,0.95),
-                    #np.max(min_dists_benchmark)]
-    
-    res = res.reset_index(drop=False,names='pop_name')
-    res = pd.melt(res,id_vars=["pop_name"],var_name=['min_distance'],value_name='score')
-    return res #, min_dists
-
-def TableNNDR(data, control_data,test_data = 'df_real95',metric='euclidean'):
-    """Function that compuets the ratio between the minimum and the second minimum distance between a synthetic and real record"""
-
-    res = pd.DataFrame(columns=['mean_train','std_train']) #,'mean_test','std_test'
-    for i in control_data:
-        # Distance matrix
-        if(metric=='euclidean'):
-            dists_train = pairwise_distances(data[i].values,data[test_data].values, metric='euclidean') 
-            #dists_test = pairwise_distances(data[i].values,data['real_excluded'].values, metric='euclidean') 
-        elif(metric=='norm1'):
-            dists_train = pairwise_distances(data[i].values,data[test_data].values, metric='minkowski', p=1)
-            #dists_test = pairwise_distances(data[i].values,data['real_excluded'].values, metric='minkowski', p=1)
-        elif(metric == 'gower'):
-            dists_train = gower.gower_matrix(data[i].values,data[test_data].values,)
-            #dists_test = gower.gower_matrix(data[i].values,data['real_excluded'].values)
-        
-        # take the minimum distances
-        sorted_rows_train = np.sort(dists_train,axis=1)
-        #sorted_rows_test = np.sort(dists_test,axis=1)
-
-        min_train = sorted_rows_train[:,0]
-        #min_test = sorted_rows_test[:,0]
-
-        second_min_train = sorted_rows_train[:,1]
-        #second_min_test = sorted_rows_test[:,1]
-
-        ratio_train = min_train/second_min_train
-        #ratio_test = min_test/second_min_test
-
-
-        #res.loc[i,:] = [np.round(np.mean(ratio_train),3), np.round(np.std(ratio_train),3), np.round(np.mean(ratio_test),3), np.round(np.std(ratio_test),3)]
-        res.loc[i,:] = [np.mean(ratio_train), np.std(ratio_train)]
-    res = res.reset_index(drop=False,names='pop_name')
-    res = pd.melt(res,id_vars=["pop_name"],var_name=['distance_ratio'],value_name='score')
-        
-    return res #, ratio_train
-
 
 def min_distance_to_synth(x_real, x_synth, metric="euclidean"):
     """This function returns the minimum distance between real and synthetic data"""
@@ -197,7 +82,51 @@ def min_distance_to_synth(x_real, x_synth, metric="euclidean"):
     return dists.min(axis=1) 
 
 
-def MIA_Table_Test(data,control_data,metric='euclidean',f=0.8,seed = 42):
+
+
+
+def DataPreparation_Privacy1(data):
+    """Function to prepare the data for the privacy analyses"""
+    
+
+    for key in data.keys():
+        data[key] = ConvertBool2number(data[key])
+
+    df = pd.concat(data, ignore_index=False)
+    df = df.reset_index(level=0).rename(columns={"level_0": "origine"})
+
+    num_cols = df.select_dtypes(include=["number"]).columns
+    #scaler = MinMaxScaler()
+    df[num_cols] = (df[num_cols]-df[num_cols].min())/(df[num_cols].max()-df[num_cols].min())
+    df = df.fillna(0)
+
+    data_out = dict()
+    for i in data.keys():
+        a = df.loc[df.origine == i,:].drop(columns='origine').reset_index(drop=True)
+        data_out[i] = a
+
+    return data_out
+
+
+def Get_Train_Test_set(df_train,df_test,f=0.80,seed=42):
+    df_train_1 = df_train.sample(frac=f,random_state=seed)
+    df_train_2 = df_train.drop(index=df_train_1.index)
+
+    df_test_1 = df_test.sample(frac=f,random_state=seed)
+    df_test_2 = df_test.drop(index=df_test_1.index)
+
+    df_train_out = pd.concat([df_train_1,df_test_1]).reset_index(drop=True)
+    df_test_out = pd.concat([df_train_2,df_test_2]).reset_index(drop=True)
+
+    """Xtrain = df_train.data.values.reshape(-1,1)
+    ytrain = df_train.label.values
+
+    Xtest = df_test.data.values.reshape(-1,1)
+    ytest = df_test.label.values"""
+
+    return df_train_out, df_test_out
+
+def MIA_Table_Test(df_train,df_test,control_data,seed = 42):
     """
     This function returns several dataframe, each dataframe reports the performance according to a measure for the classification problem.
     The output dataframes have along the rows the synthetic populations nd along the columns the classificators.
@@ -221,29 +150,11 @@ def MIA_Table_Test(data,control_data,metric='euclidean',f=0.8,seed = 42):
         f1_list = []
         aucpr_list = []
 
-        # the features are the distances
-        train_features = min_distance_to_synth(data['df_real95'].values, data[i].values,metric=metric)#.reshape(-1,1)
-        y_train = np.array([1]*len(train_features))
-        holdout_features = min_distance_to_synth(data['df_excluded'].values, data[i].values,metric=metric)#.reshape(-1,1)
-        y_test = np.array([0]*len(holdout_features))
+        X = df_train[i].values.reshape(-1,1)
+        y = df_train['label_'+i].values
 
-        df_train = pd.DataFrame({'data':train_features,'label':y_train})
-        df_test = pd.DataFrame({'data':holdout_features,'label':y_test})
-
-        df_train_1 = df_train.sample(frac=f,random_state=seed)
-        df_train_2 = df_train.drop(index=df_train_1.index)
-
-        df_test_1 = df_test.sample(frac=f,random_state=seed)
-        df_test_2 = df_test.drop(index=df_test_1.index)
-
-        df_train = pd.concat([df_train_1,df_test_1]).reset_index(drop=True)
-        df_test = pd.concat([df_train_2,df_test_2]).reset_index(drop=True)
-
-        X = df_train.data.values.reshape(-1,1)
-        y = df_train.label.values
-
-        Xtest = df_test.data.values.reshape(-1,1)
-        ytest = df_test.label.values
+        Xtest = df_test[i].values.reshape(-1,1)
+        ytest = df_test['label_'+i].values
 
         # Logistic Regression
         model = LogisticRegression(random_state=seed)
@@ -365,50 +276,19 @@ def MIA_Table_Test(data,control_data,metric='euclidean',f=0.8,seed = 42):
     return res_rocauc, res_aucpr, res_precision, res_recall, res_f1
 
 
+## MAIN
 
-def DataPreparation_Privacy1(data):
-    """Function to prepare the data for the privacy analyses"""
-    
-
-    for key in data.keys():
-        data[key] = ConvertBool2number(data[key])
-
-    df = pd.concat(data, ignore_index=False)
-    df = df.reset_index(level=0).rename(columns={"level_0": "origine"})
-
-    num_cols = df.select_dtypes(include=["number"]).columns
-    #scaler = MinMaxScaler()
-    df[num_cols] = (df[num_cols]-df[num_cols].min())/(df[num_cols].max()-df[num_cols].min())
-    df = df.fillna(0)
-
-    data_out = dict()
-    for i in data.keys():
-        a = df.loc[df.origine == i,:].drop(columns='origine').reset_index(drop=True)
-        data_out[i] = a
-
-    return data_out
-
-
-
-
-
-#%% MAIN
-
-
-
-metrics = ['norm1', 'gower'] #'euclidean',
-folder_path = '/data/housing/data/intermediate/lc_privacyStats/'
+metrics = ['euclidean','norm1', 'gower'] #'euclidean',
+folder_path = '/data/housing/data/intermediate/lc_privacyStats/AllHomes_MIA/'
 
 for metric in metrics:
-    print(metric)
-
-    res_dist = pd.DataFrame()
-    res_ratio = pd.DataFrame()
-
     MIA_res_auc_roc = pd.DataFrame()
     MIA_res_auc_pr = pd.DataFrame()
 
-    for file in tqdm(sorted(glob(f'/data/housing/data/intermediate/jl_pop_synth/isp_baselines/all_baselines_*.pickle'))):
+    df_train = pd.DataFrame()
+    df_test = pd.DataFrame()
+
+    for file in tqdm(sorted(glob(f'/data/housing/data/intermediate/jl_pop_synth/isp_baselines/all_baselines_*.pickle'))[0:4]):
         prov = file.split(".")[-2][-2:]
         # data loading
         with open(file, 'rb') as f:
@@ -423,30 +303,28 @@ for metric in metrics:
 
         control_data = [i for i in data.keys() if '95' in i and 'real' not in i]
 
-        # distances
-        dist = TableDistance(data = data, control_data=control_data, test_data = 'df_real95',metric=metric)
-        dist['prov'] = prov
+        # the features are the distances
+        
+        for i in control_data:
+            train_features = min_distance_to_synth(data['df_real95'].values, data[i].values,metric=metric)#.reshape(-1,1)
+            y_train = np.array([1]*len(train_features))
+            holdout_features = min_distance_to_synth(data['df_excluded'].values, data[i].values,metric=metric)#.reshape(-1,1)
+            y_test = np.array([0]*len(holdout_features))
 
-        res_dist = pd.concat([res_dist,dist])
+            df_train_one_pop = pd.DataFrame({i:train_features,'label_'+i:y_train})
+            df_test_one_pop = pd.DataFrame({i:holdout_features,'label'+i:y_test})
 
-        # ratios
-        ratio = TableNNDR(data=data, control_data=control_data,test_data = 'df_real95',metric=metric)
-        ratio['prov'] = prov
+            df_train = pd.concat([df_train,df_train_one_pop],axis=1)
+            df_test = pd.concat([df_test,df_test_one_pop],axis=1)
 
-        res_ratio = pd.concat([res_ratio,ratio])
 
-        # MIA
-        res_auc_roc, res_auc_pr, _, _, _ = MIA_Table_Test(data,control_data,metric=metric,f=0.8,seed = 42)
-        res_auc_roc['prov'] = prov
-        res_auc_pr['prov'] = prov
+    # defining training and testing set
+    DF_train, DF_test = Get_Train_Test_set(df_train,df_test)
 
-        MIA_res_auc_roc = pd.concat([MIA_res_auc_roc,res_auc_roc])
-        MIA_res_auc_pr = pd.concat([MIA_res_auc_pr,res_auc_pr])
+    res_auc_roc, res_auc_pr, _, _, _ = MIA_Table_Test(DF_train,DF_test,control_data)
 
     # saving
-    
-
-    res_dist.to_csv(folder_path+f'distances_{metric}.csv',index=False)
-    res_ratio.to_csv(folder_path+f'ratio_{metric}.csv',index=False)
     MIA_res_auc_roc.to_csv(folder_path+f'MIA_auc_roc_{metric}.csv',index=False)
     MIA_res_auc_pr.to_csv(folder_path+f'MIA_auc_pr_{metric}.csv',index=False)
+
+    
