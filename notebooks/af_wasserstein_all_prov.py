@@ -24,7 +24,7 @@ from spatial_autocorrelation import get_moransI, moransI_scatterplot, hypothesis
 from spatial_autocorrelation import get_localMoransI, LISA_scatterplot
 import pickle
 
-import ot 
+import ot
 from joblib import Parallel, delayed
 import os
 #%% FUNCTIONS
