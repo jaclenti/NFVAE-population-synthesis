@@ -182,8 +182,8 @@ prov_list = [u.split('.')[0] for u in list_files]
 
 # loop for prov list
 
-n_cores =10
-n_projections = 10000
+n_cores =3
+n_projections = 1000
 SWD_results = pd.concat(Parallel(n_jobs=n_cores)(delayed(SWD_for_province)(prov,cod_prov_abbrv_df) for prov in prov_list))
 
 # save to txt
