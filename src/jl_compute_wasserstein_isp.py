@@ -11,11 +11,11 @@ from glob import glob
 
 
 if __name__ == "__main__":
-    n_projections = 10000
+    n_projections = 1000
 
     all_distances = []
 
-    for file in sorted(glob(f'/data/housing/data/intermediate/jl_pop_synth/isp_baselines/all_baselines_*.pickle'))[52:]:
+    for file in sorted(glob(f'/data/housing/data/intermediate/jl_pop_synth/isp_baselines/all_baselines_*.pickle')):
         prov = file.split(".")[-2][-2:]
         print(prov)
 
@@ -32,7 +32,8 @@ if __name__ == "__main__":
                 wsd[k] = ot.sliced_wasserstein_distance(data["df_real"][['x', 'y']].to_numpy(), data[k][['x', 'y']].to_numpy(), n_projections=n_projections)
         
         all_distances.append(wsd)
-        pd.DataFrame(all_distances).set_index("prov").to_csv("/data/housing/data/intermediate/jl_pop_synth/wasserstein_isp_250825.csv")
+        pd.DataFrame(all_distances).set_index("prov").to_csv("/data/housing/data/intermediate/jl_pop_synth/wasserstein_isp_250827.csv")
+        #pd.DataFrame(all_distances).set_index("prov").to_csv("/data/housing/data/intermediate/jl_pop_synth/wasserstein_isp_250825.csv")
 
         
 
