@@ -408,7 +408,7 @@ def get_old_df_vae(bins_construction = 20, bins_energy_classes = 3, drop_COD_CAT
 
 # load the data that are used in the spatial matching
 # spatial matching will associate province, comune, risk, OMI, CAP to the geo coordinates
-def load_geo_data():
+"""def load_geo_data():
     hydro_risk = gpd.read_file(config.hydro_risk_path).to_crs('EPSG:3035')
     hydro_risk.drop(columns = 'PRO_COM',inplace=True)
     census = gpd.read_file(config.census_hydro_risk_path).to_crs('EPSG:3035') 
@@ -417,7 +417,13 @@ def load_geo_data():
     cap = gpd.read_file(config.cap_shapefile_path)
     cap = cap.to_crs('EPSG:3035')
     return {"hydro_risk": hydro_risk, "census": census, "omi_og": omi_og, "cap": cap}
+"""
 
+def load_geo_data():
+    with open("/data/housing/data/intermediate/jl_pop_synth/geo_dict.pkl", "rb") as f:
+        geo_dict = pickle.load(f)
+    return geo_dict
+    
 
 # run the script for training and saving a VAE for a province
 # with the desired implementation and optimization of the VAE

@@ -74,9 +74,11 @@ if __name__ == "__main__":
     lr_vae = 0.001
     opt_vae = "Adam"
 
-    date = "250703"
+    #date = "250703"
+    date = "250901"
 
-    for city in ["copenhagen", "brisbane", "hawaii", "naples", "paris", "barcelona"]:
+    #for city in ["copenhagen", "brisbane", "hawaii", "naples", "paris", "barcelona"]:
+    for city in ["washington dc" ,"rhode island","oslo","oakland","montreal","cape town" ,"lyon","mexico city","santiago","hong-kong","seattle", "austin","singapore"]:
         print(city, "NF")
         t0 = time()
         

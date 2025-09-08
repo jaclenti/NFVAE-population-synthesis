@@ -1,4 +1,5 @@
 # ********** VAE training for all provinces ************
+# ********** VAE training for all provinces ************
 # in this script we loop over all the italian provinces to train (i) a Normalizing Flows (NFs) able to map geographical coordinates into a latent space
 # (ii) a Variational Autoencoder (VAE) able to generate new samples of realistic houses, both for the geographical coordinates and the other
 # categorical and numeric features.

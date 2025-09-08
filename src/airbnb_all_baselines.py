@@ -4,7 +4,7 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 import json
-
+from time import time
 from jl_synthetic_pop_all_vae_provinces_airbnb import read_gz, read_json, get_df_city_for_nf
 import jl_nflows_geo_coordinates_2 as nfg
 from jl_nflows_geo_coordinates import load_nf as load_dict
@@ -84,13 +84,14 @@ def train_nf_vae(df,  # contain ["x_norm, y_norm"]
             )
 
                         
-        vae.save(path_vae)
-        vae.save_settings(path_settings)
+        #vae.save(path_vae)
+        #vae.save_settings(path_settings)
                         
         df_sample = vae.get_sample_from_vae(nf_dict = nf_dict, n_samples = n_samples)
 
                         
-        df_sample.to_csv(path_samples)
+        #df_sample.to_csv(path_samples)
+        return df_sample
 
 def train_only_vae(df,  # contain ["x_norm, y_norm"]
                  latent_dims_vae = 15,
@@ -131,13 +132,14 @@ def train_only_vae(df,  # contain ["x_norm, y_norm"]
             )
 
                         
-        vae.save(path_vae)
-        vae.save_settings(path_settings)
+        #vae.save(path_vae)
+        #vae.save_settings(path_settings)
                         
         df_sample = vae.get_sample_from_vae(nf_dict = None, n_samples = n_samples)
 
                         
-        df_sample.to_csv(path_samples)
+        #df_sample.to_csv(path_samples)
+        return df_sample
 
 def train_ipf(df, # must contain column var_area
               gdf_area,
@@ -306,11 +308,22 @@ def baselines_dict(city, date = "250811"):
 
 
 if __name__ == "__main__":
-    date = "250811"
+    #citynum = sys.argv[1]
+    #date = "250811"
+    date = "250905"
 
-    for city in ["brisbane", "hawaii", "naples", "paris", "barcelona", "copenhagen"]:
-        print(city)
+    #date_nf = "250703"
+    date_nf = "250908"
+    #date_nf95 = "250806"
+    date_nf95 = "250908_95"
+
+    #for city in ["brisbane", "hawaii", "naples", "paris", "barcelona", "copenhagen"]:
+    for city in ["washington dc" ,"rhode island","oslo","oakland","montreal","cape town" ,"lyon","mexico city","santiago","hong-kong","seattle", "austin","singapore"]:
+    #city = ["washington dc" ,"rhode island","oslo","oakland","montreal","cape town" ,"lyon","mexico city","santiago","hong-kong","seattle", "austin","singapore"][int(citynum)]
+    
+        print(">>>", city, "<<<")
         try:
+            t0 = time()
             df_full = read_gz(city, fn = "/listings.csv.gz")
             df_full["amenities"] = [json.loads(u) for u in df_full["amenities"]]
             amenities_vars = ["Air conditioning", "Elevator", "Self check-in", "Pets allowed", "Private living room", "Backyard", "Pool"]
@@ -327,13 +340,13 @@ if __name__ == "__main__":
             gdf = gdf_full[["neighbourhood","geometry"]].dissolve().to_crs('EPSG:4326')
 
 
-            #df_real = get_df_city_for_nf(city, keep_neighborhood = True).rename(columns = {"neighbourhood_cleansed": "neighbourhood"})
-            #df_real95 = df_real.sample(frac = 0.95, random_state = 1234)
-            df_real = pd.read_csv(airbnb_path + f"pop_samples/{city}_df_real_{date}.csv", index_col = 0)
-            df_real95 = pd.read_csv(airbnb_path + f"pop_samples/{city}_df_real95_{date}.csv", index_col = 0)
+            df_real = get_df_city_for_nf(city).rename(columns = {"neighbourhood_cleansed": "neighbourhood"})
+            df_real95 = df_real.sample(frac = 0.95, random_state = 1234)
+            #df_real = pd.read_csv(airbnb_path + f"pop_samples/{city}_df_real_{date}.csv", index_col = 0)
+            #df_real95 = pd.read_csv(airbnb_path + f"pop_samples/{city}_df_real95_{date}.csv", index_col = 0)
             
 
-            print("ipf")
+            print(city, "ipf")
             #df_ipf = train_ipf(df = df_real, gdf_area = gdf_full, var_area = "neighbourhood",
             #        numeric_variables = ["review_scores_rating", "reviews_per_month", "log_price"])
             #df_ipf95 = train_ipf(df = df_real95, gdf_area = gdf_full, var_area = "neighbourhood",
@@ -345,50 +358,80 @@ if __name__ == "__main__":
                     dfs_shuffle[(with_bins, province_shuffle)] = create_pop(df_real, with_bins = with_bins, province_shuffle = province_shuffle, 
                                         gdf_area = gdf_full, var_area = "neighbourhood",
                                         var_bins = ["review_scores_rating", "reviews_per_month", "log_price"],
-                                        espg = 4326)
+                                        epsg = 4326)
                     dfs_shuffle95[(with_bins, province_shuffle)] = create_pop(df_real95, with_bins = with_bins, province_shuffle = province_shuffle, 
                                         gdf_area = gdf_full, var_area = "neighbourhood",
                                         var_bins = ["review_scores_rating", "reviews_per_month", "log_price"],
-                                        espg = 4326)
+                                        epsg = 4326)
 
-            """print("copula")
+            print(city, "vae")
+            df_vae = train_only_vae(df = df_real, n_samples = 5 * len(df_real))
+            df_vae95 = train_only_vae(df = df_real95, n_samples = 5 * len(df_real95))
+            print(city, "nfvae")
+            df_nfvae = train_nf_vae(df = df_real, 
+                                      path_nf = airbnb_path + f"nf_models/{city}_{date_nf}.pkl",
+                                      train_nf = True,
+                                      n_samples = 5 * len(df_real))
+
+            print(city, "nfvae95")
+            df_nfvae95 = train_nf_vae(df = df_real95, 
+                                      path_nf = airbnb_path + f"nf_models/{city}_{date_nf95}.pkl",
+                                      train_nf = True,
+                                      n_samples = 5 * len(df_real95))
+
+            
+            print(city, "copula")
             df_real_cat = df_real.copy()
+
+            drop_cols = ['roomtype_Entire home/apt', 'roomtype_Hotel room',
+                'roomtype_Private room', 'roomtype_Shared room']#, 'neighbourhood']
             df_real_cat["roomtype"] = pd.from_dummies(df_real_cat[['roomtype_Entire home/apt', 'roomtype_Hotel room',
                 'roomtype_Private room', 'roomtype_Shared room']]).iloc[:,0].to_list()
-            df_real_cat.drop(columns = ['roomtype_Entire home/apt', 'roomtype_Hotel room',
-                'roomtype_Private room', 'roomtype_Shared room', 'neighbourhood'], inplace = True)
+            df_real_cat.drop(columns = drop_cols, inplace = True)
             df_real_cat95 = df_real95.copy()
             df_real_cat95["roomtype"] = pd.from_dummies(df_real_cat95[['roomtype_Entire home/apt', 'roomtype_Hotel room',
                 'roomtype_Private room', 'roomtype_Shared room']]).iloc[:,0].to_list()
-            df_real_cat95.drop(columns = ['roomtype_Entire home/apt', 'roomtype_Hotel room',
-                'roomtype_Private room', 'roomtype_Shared room', 'neighbourhood'], inplace = True)
+            df_real_cat95.drop(columns = drop_cols, inplace = True)
 
             df_copula = train_only_copula(df = df_real_cat,
                                         num_samples = 5 * len(df_real),
                                         numeric_variables = ["review_scores_rating", "reviews_per_month", "log_price"])
             df_nf_copula = train_nf_copula(df = df_real_cat, num_samples = 5 * len(df_real),
-                                        path_nf = airbnb_path + f"nf_models/{city}_250703.pkl",
+                                        path_nf = airbnb_path + f"nf_models/{city}_{date_nf}.pkl",
                                         numeric_variables = ["review_scores_rating", "reviews_per_month", "log_price"])
 
             df_copula95 = train_only_copula(df = df_real_cat95, 
                                         num_samples = 5 * len(df_real),
                                         numeric_variables = ["review_scores_rating", "reviews_per_month", "log_price"])
             df_nf_copula95 = train_nf_copula(df = df_real_cat95, num_samples = 5 * len(df_real),
-                                        path_nf = airbnb_path + f"nf_models/{city}_250806_95.pkl",
+                                        path_nf = airbnb_path + f"nf_models/{city}_{date_nf}_95.pkl",
                                         numeric_variables = ["review_scores_rating", "reviews_per_month", "log_price"])
             
-            """
-            """df_real.to_csv(airbnb_path + f"pop_samples/{city}_df_real_{date}.csv")
+            
+
+            
+            
+        
+        
+
+            df_real.to_csv(airbnb_path + f"pop_samples/{city}_df_real_{date}.csv")
             df_real95.to_csv(airbnb_path + f"pop_samples/{city}_df_real95_{date}.csv")
-            """
+            
+            df_vae.to_csv(airbnb_path + f"pop_samples/synhtetic_pop_{city}_{date}_ablation.csv")
+            df_vae95.to_csv(airbnb_path + f"pop_samples/synhtetic_pop_{city}_{date}_ablation_95_ablation.csv")
+            #df_nfvae.to_csv(airbnb_path + f"pop_samples/synhtetic_pop_{city}_{date}.csv")
+            df_nfvae95.to_csv(airbnb_path + f"pop_samples/synhtetic_pop_{city}_{date}_95.csv")
+            
             #df_ipf.to_csv(airbnb_path + f"pop_samples/{city}_df_ipf_{date}.csv")
             #df_ipf95.to_csv(airbnb_path + f"pop_samples/{city}_df_ipf95_{date}.csv")
             for with_bins, shuffle_province in dfs_shuffle.keys():
                 dfs_shuffle[(with_bins, shuffle_province)].to_csv(airbnb_path + f"pop_samples/{city}_df_shuffle_with_bins{with_bins}_shuffle_province{shuffle_province}.csv")
                 dfs_shuffle95[(with_bins, shuffle_province)].to_csv(airbnb_path + f"pop_samples/{city}_df_shuffle95_with_bins{with_bins}_shuffle_province{shuffle_province}.csv")
-            """df_copula.to_csv(airbnb_path +f"pop_samples/{city}_df_copula_{date}.csv")
+            df_copula.to_csv(airbnb_path +f"pop_samples/{city}_df_copula_{date}.csv")
             df_nf_copula.to_csv(airbnb_path + f"pop_samples/{city}_df_nf_copula_{date}.csv")
             df_copula95.to_csv(airbnb_path + f"pop_samples/{city}_df_copula95_{date}.csv")
-            df_nf_copula95.to_csv(airbnb_path + f"pop_samples/{city}_df_nf_copula95_{date}.csv")"""
+            df_nf_copula95.to_csv(airbnb_path + f"pop_samples/{city}_df_nf_copula95_{date}.csv")
+            t1 = time()
+            print(round(t1 - t0), "s")
         except Exception as e:
-            print(e)
+            print(city, e)

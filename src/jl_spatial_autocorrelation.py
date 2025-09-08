@@ -15,6 +15,29 @@ import jl_vae
 
 
 
+def get_moransI_sparse(W, y):
+    """
+    Moran's I using sparse weight matrix W (csr_matrix).
+    y is a 1D numpy array.
+    """
+    n = len(y)
+    y = y.astype(float)
+    y_mean = y.mean()
+    y_diff = y - y_mean
+
+    # denominator
+    denom = np.sum(y_diff ** 2)
+
+    # numerator (efficient sparse multiplication)
+    num = y_diff @ (W @ y_diff)
+
+    # normalization factor
+    W_sum = W.sum()
+
+    I = (n / W_sum) * (num / denom)
+    return I
+
+
 # compute Morans index
 # W is the distance weight, can be modified 
 def compute_spatial_autocorrelation(df, var, D = None, k = 20, local_moran = False, weighting = "within_CAP"):
@@ -67,7 +90,7 @@ def compute_spatial_autocorrelation(df, var, D = None, k = 20, local_moran = Fal
     if local_moran:
         return get_localMoransI(W,np.array(df[var]), list(df.index))
     else:
-        return get_moransI(W,np.array(df[var]))
+        return get_moransI_sparse(csr_matrix(W),np.array(df[var]))
     
 
 
@@ -76,8 +99,8 @@ if __name__ == "__main__":
     geo_dict = jl_vae.load_geo_data()    
 
 
-    for file in sorted(glob(f'/data/housing/data/intermediate/jl_pop_synth/isp_baselines/all_baselines_*.pickle'))[80:]: # kill MI, RM
-    #for file in sorted(glob(f'/data/housing/data/intermediate/jl_pop_synth/airbnb_baselines/all_baselines_*.pickle')): # kill barcelona
+    #for file in sorted(glob(f'/data/housing/data/intermediate/jl_pop_synth/isp_baselines/all_baselines_*.pickle')): # kill MI, RM
+    for file in sorted(glob(f'/data/housing/data/intermediate/jl_pop_synth/airbnb_baselines/all_baselines_*.pickle'))[5:]: # kill barcelona
         moran_prov = {}
 
         prov = file.split(".")[-2].split("_")[-1]
@@ -88,19 +111,22 @@ if __name__ == "__main__":
                 data = pickle.load(f)
             
             
-            pca = PCA(n_components = 1)
+            pca = PCA(n_components = 14)
             pca.fit(data["df_real"].drop(columns = ["x", "y"]))
-            #print(pca.explained_variance_)
-            data_pca = {k: data[k][["x", "y"]].assign(feat = pca.transform(data[k].fillna(0).drop(columns = ["x", "y"]))[:,0]) for k in data if "95" not in k}
+            n_components95 = (pca.explained_variance_ratio_.cumsum() < .95).sum()
 
-            for weighting in ["within_CAP","nearest_k","dist_threshold","exp"]:
-                moran_pca = {k:compute_spatial_autocorrelation(data_pca[k], "feat", weighting = weighting,
-                                                            local_moran = False) for k in data_pca}
+
+            data_pca = {k: pd.concat([data[k][["x", "y"]], pd.DataFrame(pca.transform(data[k].fillna(0).drop(columns = ["x", "y"]))[:,:n_components95], index = data[k].index)], axis = 1) for k in data if "95" not in k}
+
+            for weighting in ["nearest_k","dist_threshold","exp"]:
+                moran_pca = {k:{comp: compute_spatial_autocorrelation(data_pca[k],  comp, k = 20,
+                                local_moran = False, weighting = weighting) for comp in range(n_components95)}
+                                for k in data_pca}
                 
-                moran_prov[weighting] = moran_pca
+                moran_prov[prov] = {k:pd.Series(moran_pca[k]) @ pca.explained_variance_ratio_[:n_components95] for k in moran_pca}
            
-            with open(f"/data/housing/data/intermediate/jl_pop_synth/spatial_autocorrelation/moran_{prov}_pca.pkl", "wb") as f:
-                pickle.dump(moran_prov, f, protocol = pickle.HIGHEST_PROTOCOL)
+                with open(f"/data/housing/data/intermediate/jl_pop_synth/spatial_autocorrelation/moran_{weighting}_{prov}_pca.pkl", "wb") as f:
+                    pickle.dump(moran_prov, f, protocol = pickle.HIGHEST_PROTOCOL)
         except Exception as e:
             print(e)
             
