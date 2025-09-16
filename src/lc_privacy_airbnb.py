@@ -39,6 +39,8 @@ from sklearn.metrics import accuracy_score, classification_report, precision_sco
 from sklearn.metrics import roc_curve, roc_auc_score
 from sklearn.metrics import precision_recall_curve, average_precision_score
 
+
+
 def ConvertBool2number(df):
     """Function to convert boolean columns to numeric"""
     bool_cols = df.select_dtypes(include=bool).columns
@@ -408,8 +410,8 @@ for metric in metrics:
     MIA_res_auc_roc = pd.DataFrame()
     MIA_res_auc_pr = pd.DataFrame()
 
-    for file in tqdm(sorted(glob(f'/data/housing/data/intermediate/jl_pop_synth/isp_baselines/all_baselines_*.pickle'))):
-        prov = file.split(".")[-2][-2:]
+    for file in tqdm(sorted(glob(f'/data/housing/data/intermediate/jl_pop_synth/airbnb_baselines/all_baselines_*.pickle'))):
+        prov = file.split('/')[-1].split('_')[-1].split('.')[0]
         # data loading
         with open(file, 'rb') as f:
             all_baselines = pickle.load(f)
@@ -425,20 +427,20 @@ for metric in metrics:
 
         # distances
         dist = TableDistance(data = data, control_data=control_data, test_data = 'df_real95',metric=metric)
-        dist['prov'] = prov
+        dist['city'] = prov
 
         res_dist = pd.concat([res_dist,dist])
 
         # ratios
         ratio = TableNNDR(data=data, control_data=control_data,test_data = 'df_real95',metric=metric)
-        ratio['prov'] = prov
+        ratio['city'] = prov
 
         res_ratio = pd.concat([res_ratio,ratio])
 
         # MIA
         res_auc_roc, res_auc_pr, _, _, _ = MIA_Table_Test(data,control_data,metric=metric,f=0.8,seed = 42)
-        res_auc_roc['prov'] = prov
-        res_auc_pr['prov'] = prov
+        res_auc_roc['city'] = prov
+        res_auc_pr['city'] = prov
 
         MIA_res_auc_roc = pd.concat([MIA_res_auc_roc,res_auc_roc])
         MIA_res_auc_pr = pd.concat([MIA_res_auc_pr,res_auc_pr])
@@ -446,7 +448,7 @@ for metric in metrics:
     # saving
     
 
-    res_dist.to_csv(folder_path+f'distances_{metric}_newDataJacopo.csv',index=False)
-    res_ratio.to_csv(folder_path+f'ratio_{metric}_newDataJacopo.csv',index=False)
-    MIA_res_auc_roc.to_csv(folder_path+f'MIA_auc_roc_{metric}_newDataJacopo.csv',index=False)
-    MIA_res_auc_pr.to_csv(folder_path+f'MIA_auc_pr_{metric}_newDataJacopo.csv',index=False)
+    res_dist.to_csv(folder_path+f'distances_{metric}_airbnb_data.csv',index=False)
+    res_ratio.to_csv(folder_path+f'ratio_{metric}_airbnb_data.csv',index=False)
+    MIA_res_auc_roc.to_csv(folder_path+f'MIA_auc_roc_{metric}_airbnb_data.csv',index=False)
+    MIA_res_auc_pr.to_csv(folder_path+f'MIA_auc_pr_{metric}_airbnb_data.csv',index=False)
