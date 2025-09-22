@@ -448,7 +448,7 @@ for metric in metrics:
     # saving
     
 
-    res_dist.to_csv(folder_path+f'distances_{metric}_airbnb_data.csv',index=False)
-    res_ratio.to_csv(folder_path+f'ratio_{metric}_airbnb_data.csv',index=False)
-    MIA_res_auc_roc.to_csv(folder_path+f'MIA_auc_roc_{metric}_airbnb_data.csv',index=False)
-    MIA_res_auc_pr.to_csv(folder_path+f'MIA_auc_pr_{metric}_airbnb_data.csv',index=False)
+    res_dist.to_csv(folder_path+f'distances_{metric}_airbnb_data_22092025.csv',index=False)
+    res_ratio.to_csv(folder_path+f'ratio_{metric}_airbnb_data_22092025.csv',index=False)
+    MIA_res_auc_roc.to_csv(folder_path+f'MIA_auc_roc_{metric}_airbnb_data_22092025.csv',index=False)
+    MIA_res_auc_pr.to_csv(folder_path+f'MIA_auc_pr_{metric}_airbnb_data_22092025.csv',index=False)
