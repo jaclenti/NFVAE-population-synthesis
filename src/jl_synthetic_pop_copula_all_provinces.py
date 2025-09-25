@@ -43,6 +43,7 @@ def latent_to_real_coordinates(df_real, df_sample, path_nf):
     transf_xy = nfg.nf_latent_to_real(nf_dict, np.array(df_sample[["y_latent", "x_latent"]].astype(np.float32)))
     df_sample["y_trans"] = transf_xy[:,0]
     df_sample["x_trans"] = transf_xy[:,1]
+    
     scaler = MinMaxScaler((-1,1))
     scaler.fit(np.array(df_real[["x", "y"]]))
     df_sample[["x", "y"]] = scaler.inverse_transform(np.array(df_sample[["x_trans", "y_trans"]]))
