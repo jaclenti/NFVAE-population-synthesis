@@ -1,6 +1,8 @@
 # Population synthesis with geographic coordinates
 
 This repository contains the code used to develop the model and analyse the results of "Population synthesis with geographic coordinates".
+The paper has been published at _Authonomous Agents and Multiagent Systems 2026_ (AAMAS 2026). 
+Arxiv paper https://arxiv.org/abs/2510.09669.
 
 We propose a generative model of population synthesis based on Normalizing Flows (NF) + Variational Autoencoders (VAE).
 NF are used to transform the geographic coordinates in a simple distribution, and VAE is used as generative model.
